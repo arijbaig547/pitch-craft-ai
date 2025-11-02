@@ -14,9 +14,27 @@ import { useNavigate } from "react-router-dom";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import ReactMarkdown from "react-markdown";
 
-// ✅ Helper function to detect HTML content
-function isHTMLCode(text) {
-    return /<\/?[a-z][\s\S]*>/i.test(text);
+function parseAIResponse(text) {
+    let html = null;
+
+    if (text.includes("###HTML###")) {
+        html = text.split("###HTML###")[1].trim();
+    }
+
+    if (html?.startsWith("```html")) {
+        html = html.replace(/```html|```/gi, "").trim();
+    }
+
+    if (!html && (text.includes("<html") || text.includes("<body"))) {
+        html = text.trim();
+        html = html.replace(/```html|```/gi, "").trim();
+    }
+
+    return {
+        name: text.match(/###NAME###\n(.+?)\n/)?.[1] || null,
+        tagline: text.match(/###TAGLINE###\n(.+?)\n/)?.[1] || null,
+        html,
+    };
 }
 
 export default function Create() {
@@ -26,20 +44,17 @@ export default function Create() {
     const [loadingAI, setLoadingAI] = useState(false);
     const navigate = useNavigate();
 
-    // ✅ Gemini setup
     const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    // ✅ Auth check
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, (u) => {
-            if (!u) navigate("/login");
+            if (!u) navigate("/");
             else setUser(u);
         });
         return unsub;
     }, []);
 
-    // ✅ Real-time chat updates
     useEffect(() => {
         if (!user) return;
         const q = query(
@@ -47,134 +62,202 @@ export default function Create() {
             where("userId", "==", user.uid),
             orderBy("createdAt", "asc")
         );
-        const unsub = onSnapshot(q, (snap) => {
-            const msgs = snap.docs.map((d) => d.data());
-            setMessages(msgs);
+        return onSnapshot(q, (snap) => {
+            setMessages(snap.docs.map((d) => d.data()));
         });
-        return unsub;
     }, [user]);
 
-    // ✅ Send message + Gemini reply
+    const chatSession = model.startChat({
+        history: messages
+            .filter((m) => m.text)
+            .map((m) => ({
+                role: m.sender === "user" ? "user" : "model",
+                parts: [{ text: m.text }],
+            })),
+    });
+
+    const saveToDashboard = async (pitch) => {
+        await addDoc(collection(db, "pitches"), {
+            userId: user.uid,
+            name: pitch.name,
+            tagline: pitch.tagline,
+            html: pitch.html,
+            createdAt: serverTimestamp(),
+        });
+        alert("✅ Saved to Dashboard!");
+    };
+
     const handleSend = async (e) => {
         e.preventDefault();
         if (!input.trim() || !user) return;
 
-        const userMsg = {
+        await addDoc(collection(db, "chats"), {
             userId: user.uid,
             sender: "user",
             text: input,
             createdAt: serverTimestamp(),
-        };
-        await addDoc(collection(db, "chats"), userMsg);
+        });
+
         setInput("");
         setLoadingAI(true);
 
         try {
-            const result = await model.generateContent(`
-You are a startup mentor AI. 
-Format your answer neatly in **markdown** with clear headings, bullet points, and bold keywords. 
-If the user requests a "landing page" or HTML/CSS design, generate complete HTML & CSS code.
-User says: ${input}.
-      `);
+            const result = await chatSession.sendMessage(
+                `
+ Follow EXACT rules:
 
-            const aiText = result.response.text();
+1️⃣ Name & Tagline:
+If user wants startup name and tagline only:
+Format:
+###NAME###
+{startup name}
+###TAGLINE###
+{short tagline}
 
-            const aiMsg = {
-                userId: user.uid,
-                sender: "ai",
-                text: aiText,
-                createdAt: serverTimestamp(),
-            };
-            await addDoc(collection(db, "chats"), aiMsg);
-        } catch (err) {
-            console.error("AI Error:", err);
+2️⃣ Premium Website:
+If user wants a website (HTML + CSS):
+- Create a modern, professional, and premium website
+- Fully responsive (desktop, tablet, mobile)
+- Clean layout, elegant spacing, subtle shadows
+- Color palette: primary (#1F2937), secondary (#3B82F6), accent (#F59E0B), background (#F9FAFB)
+- Typography: headings 'Poppins' (bold), body 'Roboto'
+- Sections: Hero, About, Features/Programs, Services, Pricing, Testimonials, Contact
+- Use semantic HTML (header, nav, main, section, footer)
+- Buttons: smooth hover effects, rounded, modern
+- Cards: rounded corners, subtle shadow
+- Provide only HTML & CSS (no JS, no explanations)
+- Use placeholder images/text where needed
+- Wrap everything in ###HTML### block
+
+User:
+${input}
+`
+            );
+
+            const output = await result.response.text();
+            const parsed = parseAIResponse(output);
+
             await addDoc(collection(db, "chats"), {
                 userId: user.uid,
                 sender: "ai",
-                text: "⚠️ Sorry, I couldn't process your request.",
+                ...parsed,
+                text: parsed.html ? null : output,
                 createdAt: serverTimestamp(),
             });
+        } catch (err) {
+            console.log("AI Error:", err);
+            alert("❌ Gemini limit hit — try again later");
         }
+
         setLoadingAI(false);
     };
 
-    // ✅ Logout
-    const handleLogout = async () => {
-        await signOut(auth);
-        navigate("/login");
-    };
+    const handleLogout = async () => signOut(auth);
 
     return (
-        <div className="bg-gradient-to-br from-[#0a0a0f] via-[#101018] to-[#0d0d12] text-white min-h-screen flex flex-col font-sans">
-            {/* Header */}
-            <header className="flex justify-between items-center px-6 py-4 border-b border-gray-800 bg-black/40 backdrop-blur-lg sticky top-0 z-50">
-                <h1 className="text-2xl font-extrabold tracking-wide bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">
+        <div className="bg-[#020314] text-white min-h-screen flex flex-col">
+
+            {/* ✅ Premium Navbar */}
+            <header className="flex justify-between items-center px-10 py-6 bg-black/40 border-b border-white/10 backdrop-blur-xl shadow-md">
+                <h1
+                    onClick={() => navigate("/")}
+                    className="cursor-pointer text-3xl font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400"
+                >
                     🚀 AI Startup Partner
                 </h1>
-                <button
-                    onClick={handleLogout}
-                    className="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-full text-sm font-semibold shadow-md transition-all duration-200 hover:scale-105"
-                >
-                    Sign Out
-                </button>
+
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => navigate("/dashboard")}
+                        className="px-6 py-2 rounded-full font-medium bg-gradient-to-r from-purple-500/80 to-blue-500/80 
+        hover:from-purple-500 hover:to-blue-500 transition-all duration-200 text-white shadow-md 
+        hover:shadow-purple-500/30"
+                    >
+                        Dashboard
+                    </button>
+
+                    <button
+                        onClick={handleLogout}
+                        className="px-6 py-2 rounded-full font-medium bg-white/10 hover:bg-red-600/80 
+        border border-white/20 hover:border-red-500 transition-all duration-200 text-white shadow-md 
+        hover:shadow-red-500/20"
+                    >
+                        Logout
+                    </button>
+                </div>
+
             </header>
 
-            {/* Chat */}
-            <main className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
-                {messages.map((m, i) => (
-                    <div
-                        key={i}
-                        className={`flex ${m.sender === "user" ? "justify-end" : "justify-start"}`}
-                    >
-                        <div
-                            className={`max-w-2xl px-5 py-4 rounded-2xl whitespace-pre-wrap leading-relaxed shadow-lg transition-all duration-300 ${m.sender === "user"
-                                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-br-none"
-                                    : "bg-gray-800/80 backdrop-blur-sm text-gray-100 border border-gray-700 rounded-bl-none"
-                                }`}
-                        >
-                            {isHTMLCode(m.text) ? (
-                                <div className="mt-3 border border-gray-700 rounded-xl overflow-hidden shadow-inner">
-                                    <iframe
-                                        className="w-full h-[400px] bg-white"
-                                        srcDoc={m.text}
-                                        title={`Preview-${i}`}
-                                    ></iframe>
-                                </div>
-                            ) : (
-                                <div className="prose prose-invert max-w-none">
-                                    <ReactMarkdown>{m.text}</ReactMarkdown>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                ))}
+            <div className="flex flex-1">
 
-                {loadingAI && (
-                    <div className="flex justify-start">
-                        <div className="bg-gray-800 px-4 py-3 rounded-2xl rounded-bl-none text-gray-300 animate-pulse">
-                            AI is typing...
-                        </div>
+                {/* ✅ Beautiful Side Panel */}
+                <aside className="hidden md:flex flex-col w-72 bg-black/30 border-r border-white/10 p-6 gap-6">
+                    <div className="bg-white/10 p-5 rounded-xl">
+                        <h2 className="text-xl font-semibold mb-2">✨ AI Startup Partner</h2>
+                        <p className="text-gray-300 text-sm">
+                            Brainstorm professional startup name,tagline & premium landing pages instantly!
+                        </p>
                     </div>
-                )}
-            </main>
 
-            {/* Input */}
-            <form
-                onSubmit={handleSend}
-                className="flex items-center gap-3 p-4 border-t border-gray-800 bg-black/60 backdrop-blur-lg"
-            >
+                    <div className="bg-white/10 p-5 rounded-xl">
+                        <h2 className="text-lg font-semibold mb-2">🔥 Tips</h2>
+                        <ul className="text-gray-400 text-sm space-y-1">
+                            <li>• Give website type (Travel, Fitness, SaaS)</li>
+                            <li>• Describe your business clearly</li>
+                        </ul>
+                    </div>
+                </aside>
+
+                {/* ✅ Chat Section */}
+                <main className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+
+                    {messages.map((m, i) => (
+                        <div key={i} className={`flex ${m.sender === "user" ? "justify-end" : "justify-start"}`}>
+
+                            <div
+                                className={`max-w-[600px] p-5 rounded-2xl shadow-lg ${m.sender === "user"
+                                        ? "bg-gradient-to-r from-blue-600 to-purple-600"
+                                        : "bg-white/10 border border-white/10"
+                                    }`}
+                            >
+                                {m.html ? (
+                                    <div>
+                                        <iframe
+                                            srcDoc={m.html}
+                                            className="w-[500px] h-[400px] rounded-lg border mb-3"
+                                        />
+                                        <button
+                                            onClick={() => saveToDashboard(m)}
+                                            className="bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700"
+                                        >
+                                            💾 Save to Dashboard
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="text-gray-200 whitespace-pre-line">
+                                        <ReactMarkdown>{m.text}</ReactMarkdown>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+
+                    {loadingAI && (
+                        <p className="text-center text-gray-400 animate-pulse">🤖 Ai is Thinking</p>
+                    )}
+                </main>
+            </div>
+
+            {/* ✅ Input Section */}
+            <form onSubmit={handleSend} className="flex gap-3 p-4 bg-black/40 border-t border-gray-800">
                 <input
-                    type="text"
-                    className="flex-1 bg-gray-900/70 text-white px-5 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-400 transition-all duration-200"
-                    placeholder="Describe your startup idea or say 'make a landing page'..."
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                    className="flex-1 bg-white/10 px-6 py-3 rounded-full outline-none"
+                    placeholder="Describe your startup idea…"
                 />
-                <button
-                    type="submit"
-                    className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 px-6 py-3 rounded-full font-semibold shadow-md transition-all duration-200 hover:scale-105"
-                >
-                    Send
+                <button className="bg-gradient-to-r from-purple-500 to-blue-500 px-8 py-3 rounded-full font-semibold hover:opacity-90 transition">
+                    Send ✨
                 </button>
             </form>
         </div>

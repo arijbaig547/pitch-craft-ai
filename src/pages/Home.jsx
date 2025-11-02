@@ -1,11 +1,12 @@
 // src/pages/Home.jsx
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Sparkles, Rocket, Cpu, Stars } from "lucide-react";
+import { Sparkles, Rocket, Cpu } from "lucide-react";
 
 export default function Home() {
   return (
     <div className="bg-gradient-to-b from-gray-950 via-gray-900 to-black text-white min-h-screen flex flex-col font-[Inter] overflow-x-hidden">
+
       {/* Navbar */}
       <header className="flex justify-between items-center px-10 py-6 border-b border-gray-800 backdrop-blur-md bg-white/5 sticky top-0 z-50">
         <motion.h1
@@ -22,7 +23,7 @@ export default function Home() {
             Login
           </Link>
           <Link
-            to="/signup"
+            to="/register"
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full transition shadow-md hover:shadow-indigo-500/30"
           >
             Get Started
@@ -33,7 +34,7 @@ export default function Home() {
       {/* Hero Section */}
       <section className="flex flex-col items-center text-center mt-28 px-6 relative">
         <motion.div
-          className="absolute -top-10 -z-10 w-[500px] h-[500px] bg-indigo-600/20 blur-[120px] rounded-full"
+          className="absolute -top-10 -z-10 w-[500px] h-[500px] bg-indigo-800/20 blur-[120px] rounded-full"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         />
@@ -68,7 +69,7 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* Features */}
+      {/* Features (Cards) */}
       <section className="grid md:grid-cols-3 gap-10 mt-32 px-10 text-center">
         {[
           {
@@ -77,19 +78,19 @@ export default function Home() {
             desc: "Get unique startup names and taglines that stand out instantly.",
           },
           {
-            icon: <Stars className="w-8 h-8 text-purple-400 mx-auto mb-4" />,
+            icon: <Rocket className="w-8 h-8 text-purple-400 mx-auto mb-4" />,
             title: "Instant Copywriting",
             desc: "Generate hero texts, descriptions, and slogans with one click.",
           },
           {
-            icon: <Rocket className="w-8 h-8 text-pink-400 mx-auto mb-4" />,
-            title: "Pitch Like a Pro",
+            icon: <Cpu className="w-8 h-8 text-pink-400 mx-auto mb-4" />,
+            title: "Investor Pitches",
             desc: "Craft problem and solution statements that impress investors.",
           },
         ].map((item, i) => (
           <motion.div
             key={i}
-            className="bg-gradient-to-b from-gray-900/70 to-gray-950/40 border border-gray-800 rounded-2xl p-10 backdrop-blur-md hover:-translate-y-2 transition transform shadow-lg hover:shadow-indigo-500/10"
+            className="bg-gradient-to-b from-gray-900 to-gray-950 border border-gray-800 rounded-2xl p-10 backdrop-blur-md hover:-translate-y-2 transition transform shadow-lg hover:shadow-indigo-500/10"
             whileHover={{ scale: 1.05 }}
           >
             {item.icon}
@@ -99,6 +100,57 @@ export default function Home() {
             <p className="text-gray-400">{item.desc}</p>
           </motion.div>
         ))}
+      </section>
+
+      {/* Left-Right Sections */}
+      <section className="mt-32 px-10 space-y-32">
+        {/* Section 1 */}
+      {/* Section 1 */}
+<div className="flex flex-col md:flex-row gap-6 items-center md:space-x-24">
+  {/* Text */}
+  <div className="md:w-1/2">
+    <h2 className="text-4xl font-bold text-indigo-400 mb-6">Easy to Use</h2>
+    <p className="text-gray-400 text-lg">
+      Input your idea or industry and let AI generate startup names, taglines, and pitches for you in seconds.
+    </p>
+  </div>
+
+  {/* Image */}
+  <div className="md:w-1/2 flex justify-center">
+    <div className="w-full max-w-md h-64 md:h-80 bg-gradient-to-r from-gray-900 to-gray-950 rounded-2xl shadow-lg overflow-hidden flex items-center justify-center">
+      <img 
+        src="https://image.cdn2.seaart.me/2025-11-01/d42fofte878c73fks4e0-4/dbc8ccc48e01de6acd57b506013b4ae4_high.webp" 
+        alt="Easy to Use Illustration" 
+        className="w-full h-full object-cover"
+      />
+    </div>
+  </div>
+</div>
+
+
+        {/* Section 2 */}
+       {/* Section 2 */}
+<div className="flex flex-col md:flex-row gap-6 items-center md:space-x-24 md:flex-row-reverse">
+  {/* Text */}
+  <div className="md:w-1/2">
+    <h2 className="text-4xl font-bold text-indigo-400 mb-6">Investor Ready</h2>
+    <p className="text-gray-400 text-lg">
+      AI crafts professional problem-solution statements that make your pitch investor-ready instantly.
+    </p>
+  </div>
+
+  {/* Image */}
+  <div className="md:w-1/2 flex justify-center">
+    <div className="w-full max-w-md h-64 md:h-80 bg-gradient-to-r from-gray-900 to-gray-950 rounded-2xl shadow-lg overflow-hidden flex items-center justify-center">
+      <img 
+        src="https://image.cdn2.seaart.me/2025-11-01/d42fmsle878c7386rmag-4/722096efbb7e7d28a0acb58d31e8d0c4_high.webp" 
+        alt="Investor Ready Illustration" 
+        className="w-full h-full object-cover"
+      />
+    </div>
+  </div>
+</div>
+
       </section>
 
       {/* CTA Footer */}

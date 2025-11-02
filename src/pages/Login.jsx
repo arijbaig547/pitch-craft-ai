@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { auth } from "../config/firebase";
 import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
+import { Helmet } from "react-helmet";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -28,6 +29,7 @@ function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-indigo-100 pt-20">
+        
       <div className="bg-white/60 backdrop-blur-xl p-10 rounded-3xl shadow-lg w-[90%] max-w-md">
         <h2 className="text-3xl font-extrabold text-center text-gray-800 mb-2">
           Welcome Back 👋

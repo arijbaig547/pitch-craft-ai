@@ -10,7 +10,7 @@ function Register() {
 
   useEffect(() => {
     onAuthStateChanged(auth, (user) => {
-      if (user) navigate("/create");
+      if (user) navigate("/login");
     });
   }, []);
 
@@ -19,7 +19,7 @@ function Register() {
     try {
       await createUserWithEmailAndPassword(auth, email, password);
       alert("Account Created Successfully! 🎉");
-      navigate("/create");
+      navigate("/login");
     } catch (error) {
       alert(error.message);
       console.error("Signup Error:", error);
